@@ -1,8 +1,10 @@
+import threading
 from collections import namedtuple
 
 import PIL
 import zbar
 from kivy.app import App
+from kivy.clock import mainthread
 from kivy.garden.xcamera import XCamera as Camera
 from kivy.lang import Builder
 from kivy.properties import ListProperty
@@ -35,6 +37,7 @@ class ZBarCam(AnchorLayout):
 
     def __init__(self, **kwargs):
         super(ZBarCam, self).__init__(**kwargs)
+        self._detect_qrcode_frame_thread = None
         self._camera = Camera(
                 play=True,
                 resolution=self.resolution)
@@ -66,20 +69,37 @@ class ZBarCam(AnchorLayout):
         camera.setParameters(params)
 
     def _on_texture(self, instance):
-        self._detect_qrcode_frame(
-            instance=None, camera=instance, texture=instance.texture)
+        """
+        Starts the QRCode detector thread.
+        """
+        # if a thread is already alive/working skip it
+        if self._detect_qrcode_frame_thread \
+                and self._detect_qrcode_frame_thread.is_alive():
+            return
+        kwargs = {
+            'instance': None,
+            'camera': instance,
+            'texture': instance.texture,
+            # have to pass the pixels separately or we get the exception:
+            # `Shader didnt link, check info log.`
+            'pixels': instance.texture.pixels,
+        }
+        self._detect_qrcode_frame_thread = threading.Thread(
+            target=self._detect_qrcode_frame, kwargs=kwargs)
+        self._detect_qrcode_frame_thread.start()
 
-    def start(self):
-        self._camera.play = True
+    @mainthread
+    def _update_symbols(self, symbols):
+        """
+        OpenGL related operations (widget, canvas, property manipulation etc.)
+        should be done only in the main thread.
+        """
+        self.symbols = symbols
 
-    def stop(self):
-        self._camera.play = False
-
-    def _detect_qrcode_frame(self, instance, camera, texture):
-        image_data = texture.pixels
+    def _detect_qrcode_frame(self, instance, camera, texture, pixels):
         size = texture.size
         fmt = texture.colorfmt.upper()
-        pil_image = PIL.Image.frombytes(mode=fmt, size=size, data=image_data)
+        pil_image = PIL.Image.frombytes(mode=fmt, size=size, data=pixels)
         # convert to greyscale; since zbar only works with it
         pil_image = pil_image.convert('L')
         width, height = pil_image.size
@@ -99,7 +119,13 @@ class ZBarCam(AnchorLayout):
                 count=symbol.count,
                 bounds=None)
             symbols.append(qrcode)
-        self.symbols = symbols
+        self._update_symbols(symbols)
+
+    def start(self):
+        self._camera.play = True
+
+    def stop(self):
+        self._camera.play = False
 
 
 DEMO_APP_KV_LANG = """
@@ -111,12 +137,12 @@ BoxLayout:
         allow_stretch: True
         # Android camera rotation workaround, refs:
         # https://github.com/AndreMiras/garden.zbarcam/issues/3
-		canvas.before:
+        canvas.before:
             PushMatrix
             Rotate:
                 angle: -90 if platform == 'android' else 0
                 origin: self.center
-		canvas.after:
+        canvas.after:
             PopMatrix
     Label:
         size_hint: None, None
