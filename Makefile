@@ -10,16 +10,16 @@ OS=$(shell lsb_release -si)
 OPENCV_VERSION=2.4.13.6
 OPENCV_BASENAME=opencv-$(OPENCV_VERSION)
 OPENCV_BUILD=$(OPENCV_BASENAME)/build/lib/cv2.so
-OPENCV_DEPLOY=$(VENV_NAME)/lib/python2.7/site-packages/cv2.so
+OPENCV_DEPLOY=$(VENV_NAME)/lib/python3.7/site-packages/cv2.so
 NPROC=`grep -c '^processor' /proc/cpuinfo`
 
 
 all: system_dependencies opencv virtualenv
 
 virtualenv:
-	test -d venv || virtualenv -p python2 venv
+	test -d venv || python3 -m venv venv
 	. venv/bin/activate
-	$(PIP) install Cython==0.26.1
+	$(PIP) install Cython==0.28.2
 	$(PIP) install -r requirements/requirements.txt
 	$(GARDEN) install xcamera
 
@@ -32,6 +32,7 @@ $(OPENCV_BUILD):
 	curl --location https://github.com/opencv/opencv/archive/$(OPENCV_VERSION).tar.gz \
 		--progress-bar --output $(OPENCV_BASENAME).tar.gz
 	tar -xf $(OPENCV_BASENAME).tar.gz
+	patch -p1 "$(OPENCV_BASENAME)/modules/highgui/src/cap_ffmpeg_impl.hpp" < cap_ffmpeg_impl.hpp.patch
 	cmake \
 		-D BUILD_DOCS=OFF -D BUILD_PACKAGE=OFF -D BUILD_PERF_TESTS=OFF \
 		-D BUILD_TESTS=OFF -D BUILD_opencv_apps=OFF \
