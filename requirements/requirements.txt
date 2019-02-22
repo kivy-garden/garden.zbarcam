@@ -1,6 +1,6 @@
 zbarlight==1.2
 # For opencv4 support
-https://github.com/kivy/kivy/archive/5fc538588092133f1a63edd6b0d79f00d3c86db4.zip
+https://github.com/kivy/kivy/archive/5fc5385.zip
 Kivy-Garden==0.1.4
 Pillow==4.3.0
 numpy==1.16.1
