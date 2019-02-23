@@ -36,19 +36,25 @@ class ZBarCam(AnchorLayout):
 
     # TODO: handle code types
     def __init__(self, **kwargs):
+        print('ZBarCam.__init__ 1')
         # lazy loading the kv file rather than loading at module level,
         # that way the `XCamera` import doesn't happen too early
         Builder.load_file(os.path.join(MODULE_DIRECTORY, "zbarcam.kv"))
         super(ZBarCam, self).__init__(**kwargs)
+        print('ZBarCam.__init__ 2')
         Clock.schedule_once(lambda dt: self._setup())
+        print('ZBarCam.__init__ 3')
 
     def _setup(self):
         """
         Postpones some setup tasks that require self.ids dictionary.
         """
+        print('ZBarCam._setup 1')
         self._remove_shoot_button()
         self._enable_android_autofocus()
+        print('ZBarCam._setup 2')
         self.xcamera._camera.bind(on_texture=self._on_texture)
+        print('ZBarCam._setup 3')
         # self.add_widget(self.xcamera)
 
     def _remove_shoot_button(self):
@@ -72,6 +78,7 @@ class ZBarCam(AnchorLayout):
         camera.setParameters(params)
 
     def _on_texture(self, instance):
+        print('_on_texture')
         self.codes = self._detect_qrcode_frame(
             texture=instance.texture, code_types=self.code_types)
 
@@ -86,7 +93,10 @@ class ZBarCam(AnchorLayout):
         if platform == 'ios' and fmt == 'BGRA':
             fmt = 'RGBA'
         pil_image = PIL.Image.frombytes(mode=fmt, size=size, data=image_data)
-        return zbarlight.scan_codes(code_types, pil_image) or []
+        print('pil_image:', pil_image)
+        codes = zbarlight.scan_codes(code_types, pil_image)
+        print('codes:', codes)
+        return codes or []
 
     @property
     def xcamera(self):
